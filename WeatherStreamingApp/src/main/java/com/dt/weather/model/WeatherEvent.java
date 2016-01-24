@@ -19,19 +19,18 @@ public class WeatherEvent extends WeatherBase implements Serializable
   public WeatherEvent copyEvent() {
     WeatherEvent event = new WeatherEvent();
 
-   event.setTs(this.getTs());
+   
    event.setWeatherID(this.getWeatherID());
    event.setCity(this.getCity());
    event.setCount(this.getCount());
+   event.setDescription(this.getDescription());
     return event;
   }
 
   @Override
   public String toString()
   {
-    return "WeatherEvent [count=" + count + ", key=" + key + ", timeUnit=" + timeUnit + ", hashCode()=" + hashCode()
-        + ", getTs()=" + getTs() + ", getWeatherID()=" + getWeatherID() + ", getCity()=" + getCity() + ", toString()="
-        + super.toString() + ", getClass()=" + getClass() + "]";
+    return "WeatherEvent [count=" + count + ", key=" + key + ", timeUnit=" + timeUnit + "]";
   }
 
   public int getCount()

@@ -12,15 +12,25 @@ public class WeatherBase implements Serializable
    * 
    */
   private static final long serialVersionUID = 5528471313726133689L;
-  private long ts;
   private int weatherID;
   private String city;
+  private String description;
  
+  public String getDescription()
+  {
+    return description;
+  }
+
+  public void setDescription(String description)
+  {
+    this.description = description;
+  }
+
   @JsonIgnore
   private int key;
 
   private TimeUnit timeUnit;
-  public static final int DIMENSION_WEATHER_ID = 1 << 2;
+  public static final int DIMENSION_WEATHER_DESCRIPTION = 1 << 2;
 
   @Override
   public int hashCode() {
@@ -29,14 +39,6 @@ public class WeatherBase implements Serializable
     return hash;
   }
   
-  public long getTs()
-  {
-    return ts;
-  }
-  public void setTs(long ts)
-  {
-    this.ts = ts;
-  }
   public int getWeatherID()
   {
     return weatherID;
@@ -64,11 +66,7 @@ public class WeatherBase implements Serializable
     }
 
     final WeatherBase eventChk = (WeatherBase) obj;
-    if (this.weatherID != eventChk.weatherID) {
-      return false;
-    }
-
-    if (this.ts != eventChk.ts) {
+    if (this.description != eventChk.description) {
       return false;
     }
 
@@ -78,8 +76,8 @@ public class WeatherBase implements Serializable
   @Override
   public String toString()
   {
-    return "WeatherBase [ts=" + ts + ", weatherID=" + weatherID + ", city=" + city + ", key=" + key + ", timeUnit="
-        + timeUnit + "]";
+    return "WeatherBase [weatherID=" + weatherID + ", city=" + city + ", description=" + description + ", key=" + key
+        + ", timeUnit=" + timeUnit + "]";
   }
 
 }
