@@ -36,15 +36,15 @@ public class SimpleFileReader extends AbstractFileInputOperator<String>
   {
 
     //Uncomment these when the regex from directory scanner works
-   // Path prevPath = new Path(super.currentFile);
-   // Path processedPath = new Path(super.currentFile + ".proc");
+//    Path prevPath = new Path(super.currentFile);
+//    Path processedPath = new Path(super.currentFile + ".proc");
 
     super.closeFile(is);
     br.close();
 
- //   FileContext fc = FileContext.getFileContext(super.fs.getUri());
-
-   // fc.rename(prevPath, processedPath, Rename.OVERWRITE);
+//    FileContext fc = FileContext.getFileContext(super.fs.getUri());
+//
+//    fc.rename(prevPath, processedPath, Rename.OVERWRITE);
 
     br = null;
   }

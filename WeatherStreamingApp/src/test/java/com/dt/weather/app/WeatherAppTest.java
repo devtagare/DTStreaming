@@ -18,14 +18,16 @@ import com.dt.weather.app.WeatherApp;
 /**
  * Test the DAG declaration in local mode.
  */
-public class WeatherAppTest {
+public class WeatherAppTest
+{
 
   @Test
-  public void testApplication() throws IOException, Exception {
+  public void testApplication() throws IOException, Exception
+  {
     try {
       LocalMode lma = LocalMode.newInstance();
-     // Configuration conf = new Configuration(false);
-      Configuration conf = new WeatherApp().readPropertiesFile("/Users/dev/checkout/personalGit/devel/DTStreaming/WeatherStreamingApp/src/test/resources/localmode.properties");
+      Configuration conf = new WeatherApp()
+          .readPropertiesFile("/Users/dev/checkout/personalGit/devel/DTStreaming/WeatherStreamingApp/src/test/resources/localmode.properties");
       conf.addResource(this.getClass().getResourceAsStream("/META-INF/properties.xml"));
       lma.prepareDAG(new WeatherApp(), conf);
       LocalMode.Controller lc = lma.getController();
