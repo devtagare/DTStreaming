@@ -43,12 +43,12 @@ public class KeyValChangeAlert<K, V extends Number> extends BaseNumberKeyValueOp
         basemap.put(cloneKey(key), val);
         alert.emit(new KeyValPair<K, Integer>(key, tval));
         return;
-      }
-
+      } 
+      
       if (tval >= absoluteThreshold) {
         val.setValue(val.intValue() + tval);
         basemap.put(key, val);
-        alert.emit(new KeyValPair<K, Integer>(key, tval));
+        alert.emit(new KeyValPair<K, Integer>(key, val.intValue()));
         return;
       }
 

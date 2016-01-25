@@ -41,7 +41,7 @@ public class WeatherApp implements StreamingApplication
         "/Users/dev/workspace/mydtapp/src/test/resources/data/"));
    
     //Uncomment the rename logic in simple file reader when the regex works
-  //  fileReader.getScanner().setFilePatternRegexp("WeatherInfoTest.[0-9]*.json");
+  //  fileReader.getScanner().setFilePatternRegexp("\\*.json");
 
     fileReader.setScanIntervalMillis(0);
     fileReader.setEmitBatchSize(1);
