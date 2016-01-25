@@ -24,6 +24,7 @@ public class DefaultConverter extends BaseOperator
   public DefaultConverter()
   {
     defaultCache = new ArrayList<KeyValPair<String, Integer>>();
+    defaultCache.add(new KeyValPair<String, Integer>("Unique descritions", 0));
   }
 
   public final transient DefaultInputPort<KeyValPair<String, Integer>> data = new DefaultInputPort<KeyValPair<String, Integer>>()
@@ -73,9 +74,9 @@ public class DefaultConverter extends BaseOperator
       otuple.append(opair.getKey()+WeatherConstants.TUPLE_SEPARATOR+opair.getValue());
     }
     
-    otuple.append(WeatherConstants.RECORD_SEPARATOR);
-    otuple.append("Unique Descritptions:"+defaultCache.size());
-    
+//    otuple.append(WeatherConstants.RECORD_SEPARATOR);
+//    otuple.append("Unique Descritptions:"+defaultCache.size());
+//    
     otuple.append("]");
     
     output.emit(otuple.toString());

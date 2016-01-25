@@ -73,8 +73,8 @@ public class ChangeAlert<K, V extends Number> extends BaseNumberKeyValueOperator
       if (tval >= absoluteThreshold) {
         val.setValue(val.intValue() + tval);
         
-        //basemap.put(cloneKey(key), val);
-        basemap.put(key, val);
+        basemap.put(cloneKey(key), val);
+        //basemap.put(key, val);
         alert.emit("< Uniq Second" + new KeyValPair<K, Integer>(key, tval) + ">");
         return;
       }

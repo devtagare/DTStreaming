@@ -11,15 +11,16 @@ import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 
+import com.datatorrent.api.Context;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.DAG.Locality;
 import com.datatorrent.api.LocalMode;
 import com.datatorrent.api.StreamingApplication;
 import com.datatorrent.api.annotation.ApplicationAnnotation;
+import com.datatorrent.common.partitioner.StatelessPartitioner;
 import com.datatorrent.contrib.kafka.KafkaSinglePortOutputOperator;
 import com.datatorrent.lib.math.SumKeyVal;
 import com.dt.weather.constants.WeatherConstants;
-import com.dt.weather.converter.DefaultConverter;
 import com.dt.weather.counter.KeyValChangeAlert;
 import com.dt.weather.event.convertor.SinglePortWeatherEventConvertor;
 import com.dt.weather.input.SimpleFileReader;
@@ -51,7 +52,7 @@ public class WeatherApp implements StreamingApplication
     SinglePortWeatherEventConvertor eventConvertor = dag.addOperator("WeatherEventConv",
         new SinglePortWeatherEventConvertor());
     
-    DefaultConverter defaultConv = dag.addOperator("DefaultConverter", new DefaultConverter());
+ //   DefaultConverter defaultConv = dag.addOperator("DefaultConverter", new DefaultConverter());
 
     KeyValChangeAlert<String, Integer> changeNotifier = dag.addOperator("ChangeNotifier", new KeyValChangeAlert<String, Integer>());
 
@@ -64,6 +65,8 @@ public class WeatherApp implements StreamingApplication
     SumKeyVal<String, Integer> counter = dag.addOperator("GlobalCounter", new SumKeyVal<String, Integer>());
     counter.setType(Integer.class);
     counter.setCumulative(true);
+    
+    dag.setAttribute(counter, Context.OperatorContext.PARTITIONER, new StatelessPartitioner<SumKeyVal<String,Integer>>(3));
 
     //Kafka output's
     KafkaSinglePortOutputOperator<Object, Object> kafkaOutputOperator = dag.addOperator("KafkaOutputUniques",
@@ -82,10 +85,11 @@ public class WeatherApp implements StreamingApplication
 
     dag.addStream("Change Notifier", counter.sum, changeNotifier.data);
     
-    dag.addStream("Convert Output", changeNotifier.alert, defaultConv.data);
-
-    dag.addStream("KafkaGLobalCountsWriter", defaultConv.output, kafkaOutputOperator.inputPort).setLocality(
+    dag.addStream("Convert Output", changeNotifier.alert, kafkaOutputOperator.inputPort).setLocality(
         Locality.CONTAINER_LOCAL);
+
+//    dag.addStream("KafkaGLobalCountsWriter", defaultConv.output, kafkaOutputOperator.inputPort).setLocality(
+//        Locality.CONTAINER_LOCAL);
 
   }
 
