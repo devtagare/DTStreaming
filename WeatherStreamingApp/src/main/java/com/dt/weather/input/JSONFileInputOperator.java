@@ -6,22 +6,43 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Options.Rename;
+import org.apache.hadoop.fs.Path;
+import org.json.simple.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datatorrent.api.Attribute;
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.lib.io.fs.AbstractFileInputOperator;
 import com.datatorrent.lib.testbench.CollectorTestSink;
+import com.datatorrent.lib.util.KeyValPair;
 import com.dt.weather.app.OperatorContextHelper;
+import com.dt.weather.event.convertor.WeatherEventConvertor;
 
-public class SimpleFileReader extends AbstractFileInputOperator<String>
+public class JSONFileInputOperator extends AbstractFileInputOperator<String>
 {
+  
+  private static final Logger LOG = LoggerFactory.getLogger(WeatherEventConvertor.class);
 
-  public transient DefaultOutputPort<String> output = new DefaultOutputPort<String>();
+  public transient DefaultOutputPort<KeyValPair<String, Integer>> output = new DefaultOutputPort<KeyValPair<String, Integer>>();
+
+  private static JSONParser parser = new JSONParser();
 
   BufferedReader br;
+
+  private String matchKey;
+  
+  public String getMatchKey()
+  {
+    return matchKey;
+  }
+
+  public void setMatchKey(String matchKey)
+  {
+    this.matchKey = matchKey;
+  }
 
   @Override
   protected InputStream openFile(Path path) throws IOException
@@ -37,13 +58,14 @@ public class SimpleFileReader extends AbstractFileInputOperator<String>
 
     //Uncomment these when the regex from directory scanner works
 //    Path prevPath = new Path(super.currentFile);
+//    
 //    Path processedPath = new Path(super.currentFile + ".proc");
 
     super.closeFile(is);
     br.close();
 
 //    FileContext fc = FileContext.getFileContext(super.fs.getUri());
-//
+//    
 //    fc.rename(prevPath, processedPath, Rename.OVERWRITE);
 
     br = null;
@@ -52,7 +74,24 @@ public class SimpleFileReader extends AbstractFileInputOperator<String>
   @Override
   protected void emit(String arg0)
   {
-    output.emit(arg0.toString());
+    parser = new JSONParser();
+
+    KeyFinder finder = new KeyFinder();
+    finder.setMatchKey(getMatchKey());
+    try {
+      while (!finder.isEnd()) {
+        parser.parse(arg0, finder, true);
+        if (finder.isFound()) {
+          finder.setFound(false);
+          System.out.println("found id:");
+          System.out.println(finder.getValue().toString());
+
+          output.emit(new KeyValPair<String, Integer>(finder.getValue().toString(), 1));
+        }
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
 
   }
 
@@ -70,7 +109,7 @@ public class SimpleFileReader extends AbstractFileInputOperator<String>
     attributes.put(Context.DAGContext.APPLICATION_PATH, dir);
     Context.OperatorContext context = new OperatorContextHelper.TestIdOperatorContext(1, attributes);
 
-    SimpleFileReader jsonReader = new SimpleFileReader();
+    JSONFileInputOperator jsonReader = new JSONFileInputOperator();
 
     jsonReader.setDirectory(dir);
 
@@ -88,7 +127,7 @@ public class SimpleFileReader extends AbstractFileInputOperator<String>
     jsonReader.output.setSink(sink);
 
     try {
-      for (long wid = 0; wid < 10; wid++) {
+      for (long wid = 0; wid < 100; wid++) {
         jsonReader.beginWindow(wid);
 
         jsonReader.emitTuples();

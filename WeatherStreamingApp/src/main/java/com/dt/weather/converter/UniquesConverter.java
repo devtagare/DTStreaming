@@ -12,24 +12,19 @@ import com.datatorrent.lib.util.KeyValPair;
 public class UniquesConverter extends BaseOperator
 {
   private static final Logger LOG = LoggerFactory.getLogger(UniquesConverter.class);
-  
-  public final transient DefaultInputPort<KeyHashValPair<KeyValPair<Integer,Integer>,Integer>> data = new DefaultInputPort<KeyHashValPair<KeyValPair<Integer,Integer>,Integer>>()
-      {
-        @Override
-        public void process(KeyHashValPair<KeyValPair<Integer,Integer>,Integer> tuple)
-        {
-          
-          
 
-          if(tuple!=null){
-          
-            String str = "<Unique," + tuple.getKey().getKey() + "," + tuple.getKey().getValue() +" >";
-          
-            output.emit(str);
-          }
+  public final transient DefaultInputPort<KeyHashValPair<KeyValPair<String, Integer>, Integer>> data = new DefaultInputPort<KeyHashValPair<KeyValPair<String, Integer>, Integer>>()
+  {
+    @Override
+    public void process(KeyHashValPair<KeyValPair<String, Integer>, Integer> tuple)
+    {
 
-        }
-      };
+      if (tuple != null) {
+        output.emit(new KeyValPair<String, Integer>(tuple.getKey().getKey(), tuple.getKey().getValue()));
+      }
 
-      public final transient DefaultOutputPort<String> output = new DefaultOutputPort<String>();
+    }
+  };
+
+  public final transient DefaultOutputPort<KeyValPair<String, Integer>> output = new DefaultOutputPort<KeyValPair<String, Integer>>();
 }

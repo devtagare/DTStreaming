@@ -6,11 +6,10 @@ package com.dt.weather.app;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Properties;
 import java.util.Map.Entry;
+import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tools.ant.types.CommandlineJava.SysProperties;
 
 import com.datatorrent.api.Context;
 import com.datatorrent.api.DAG;
@@ -20,21 +19,17 @@ import com.datatorrent.api.StreamingApplication;
 import com.datatorrent.api.annotation.ApplicationAnnotation;
 import com.datatorrent.common.partitioner.StatelessPartitioner;
 import com.datatorrent.contrib.kafka.KafkaSinglePortOutputOperator;
-import com.datatorrent.lib.algo.UniqueCounter;
-import com.datatorrent.lib.converter.MapToKeyHashValuePairConverter;
-import com.datatorrent.lib.math.ChangeAlertKeyVal;
-import com.datatorrent.lib.math.SumKeyVal;
-import com.datatorrent.lib.stream.StreamMerger;
-import com.datatorrent.lib.util.KeyValPair;
+import com.datatorrent.stram.engine.PortContext;
 import com.dt.weather.constants.WeatherConstants;
-import com.dt.weather.converter.DefaultConverter;
-import com.dt.weather.converter.UniquesConverter;
-import com.dt.weather.counter.ChangeAlert;
-import com.dt.weather.event.convertor.WeatherEventConvertor;
+import com.dt.weather.converter.OutputConverter;
+import com.dt.weather.counter.KeyValChangeAggregator;
+import com.dt.weather.counter.KeyValChangeAlert;
+import com.dt.weather.event.convertor.SinglePortWeatherEventConvertor;
+import com.dt.weather.input.JSONFileInputOperator;
 import com.dt.weather.input.SimpleFileReader;
 
 @ApplicationAnnotation(name = "WeatherApp")
-public class Application implements StreamingApplication
+public class WeatherApp implements StreamingApplication
 {
 
   @Override
@@ -44,42 +39,28 @@ public class Application implements StreamingApplication
 
     /*Add the File reader*/
 
-    SimpleFileReader fileReader = dag.addOperator("FileReader", new SimpleFileReader());
+    JSONFileInputOperator fileReader = dag.addOperator("FileReader", new JSONFileInputOperator());
 
     fileReader.setDirectory(conf.get(WeatherConstants.INPUT_DIRECTORY_PATH,
         "/Users/dev/workspace/mydtapp/src/test/resources/data/"));
 
+    fileReader.setMatchKey(conf.get(WeatherConstants.MATCH_KEY, "description"));
+
+    //Uncomment the rename logic in simple file reader when the regex works
+  //  fileReader.getScanner().setFilePatternRegexp(".json");
+
     fileReader.setScanIntervalMillis(0);
     fileReader.setEmitBatchSize(1);
 
-    /*Add the Event convertor*/
-
-    WeatherEventConvertor eventConvertor = dag.addOperator("WeatherEventConv", new WeatherEventConvertor());
-
-    DefaultConverter defaultConv = dag.addOperator("DefaultConv", new DefaultConverter());
-    UniquesConverter uniqConv = dag.addOperator("UniqConv", new UniquesConverter());
-
-    /*Add the uniques */
-    UniqueCounter<KeyValPair<String, Integer>> uniqCount = dag.addOperator("UniquesCounter",
-        new UniqueCounter<KeyValPair<String, Integer>>());
-    //    @SuppressWarnings("rawtypes")
-    MapToKeyHashValuePairConverter<KeyValPair<String, Integer>, Integer> converter = dag.addOperator("converter",
-        new MapToKeyHashValuePairConverter());
-    uniqCount.setCumulative(false);
-    dag.setAttribute(uniqCount, Context.OperatorContext.PARTITIONER,
-        new StatelessPartitioner<UniqueCounter<Integer>>(1));
-
-    ChangeAlert<String, Integer> changeNotifier = dag.addOperator("ChangeNotifier", new ChangeAlert<String, Integer>());
-    
-    changeNotifier.setPercentThreshold(1);
-
-    //TODO- add the partitioner code snippet here
-    //TODO - change the locality of the converter with the uniqCounter
-
     //Add the overall counter
-    SumKeyVal<String, Integer> counter = dag.addOperator("GlobalCounter", new SumKeyVal<String, Integer>());
+    KeyValChangeAggregator<String, Integer> counter = dag.addOperator("GlobalCounter",
+        new KeyValChangeAggregator<String, Integer>());
     counter.setType(Integer.class);
     counter.setCumulative(true);
+    dag.setAttribute(counter, Context.OperatorContext.PARTITIONER,
+        new StatelessPartitioner<KeyValChangeAggregator<String, Integer>>(5));
+
+    OutputConverter<String, Integer> opConv = dag.addOperator("Converter", new OutputConverter<String, Integer>());
 
     //Kafka output's
     KafkaSinglePortOutputOperator<Object, Object> kafkaOutputOperator = dag.addOperator("KafkaOutputUniques",
@@ -88,34 +69,13 @@ public class Application implements StreamingApplication
 
     kafkaOutputOperator.setTopic(conf.get(WeatherConstants.TOPIC, "counter"));
 
-    KafkaSinglePortOutputOperator<Object, Object> kafkaOutputOperatorGlobal = dag.addOperator("KafkaOutputGlobal",
-        new KafkaSinglePortOutputOperator<Object, Object>());
-
-    kafkaOutputOperatorGlobal.setConfigProperties(getProducerProperties(conf));
-    kafkaOutputOperatorGlobal.setTopic(conf.get(WeatherConstants.TOPIC, "counter"));
-
-    System.out.println("heremoe");
-
     /*Assemble the DAG*/
 
-    dag.addStream("InputRecords", fileReader.output, eventConvertor.data).setLocality(Locality.THREAD_LOCAL);
+    dag.addStream("InputRecords", fileReader.output, counter.data).setLocality(Locality.CONTAINER_LOCAL);
 
-    dag.addStream("Uniques", eventConvertor.outputUnique, uniqCount.data);
+    dag.addStream("Unifier Output", counter.alert, opConv.data);
 
-    dag.addStream("Global Counter", eventConvertor.output, counter.data);
-
-    dag.addStream("UniquesConv", uniqCount.count, converter.input).setLocality(Locality.THREAD_LOCAL);
-
-    dag.addStream("KafkaConv", converter.output, uniqConv.data).setLocality(Locality.CONTAINER_LOCAL);
-
-    dag.addStream("Alerter", uniqConv.output, changeNotifier.data).setLocality(Locality.CONTAINER_LOCAL);
-
-    dag.addStream("kafkaUniqWriter", changeNotifier.alert, kafkaOutputOperator.inputPort).setLocality(
-        Locality.CONTAINER_LOCAL);
-
-    dag.addStream("KafkaOutputGlobalCounts", counter.sum, defaultConv.data);
-    dag.addStream("KafkaGLobalCountsWriter", defaultConv.output, kafkaOutputOperatorGlobal.inputPort).setLocality(
-        Locality.CONTAINER_LOCAL);
+    dag.addStream("Convert Output", opConv.output, kafkaOutputOperator.inputPort);
 
   }
 

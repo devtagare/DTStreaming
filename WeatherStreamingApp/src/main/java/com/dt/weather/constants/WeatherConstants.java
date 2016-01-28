@@ -14,6 +14,10 @@ public class WeatherConstants
   public static final String BROKERSET = "dt.brokerSet";
   public static final String META_DATA_REFRESH = "metadataRefresh";
   public static final String TOPIC = "dt.topic.name";
+  public static final String WEATHER_DESC = "description";
+  public static final String RECORD_SEPARATOR = ",";
+  public static final String TUPLE_SEPARATOR = ":";
+  public static final String MATCH_KEY = "description";
   
  
 }

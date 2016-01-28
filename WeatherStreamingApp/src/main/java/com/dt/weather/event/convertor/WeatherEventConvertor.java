@@ -1,4 +1,4 @@
-package com.dt.weather.convertor;
+package com.dt.weather.event.convertor;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -48,8 +48,11 @@ public class WeatherEventConvertor implements Operator
       while (itr.hasNext()) {
         WeatherEvent event = itr.next();
         if (event != null) {
-          KeyValPair<Integer, Integer> pair = new KeyValPair<Integer, Integer>(event.hashCode(), event.getCount());
-          KeyValPair<Integer, Integer> pair1 = new KeyValPair<Integer, Integer>(event.hashCode(), event.getCount());
+
+          System.out.println("Event is :" + event.toString());
+
+          KeyValPair<String, Integer> pair = new KeyValPair<String, Integer>(event.getDescription(), event.getCount());
+          KeyValPair<String, Integer> pair1 = new KeyValPair<String, Integer>(event.getDescription(), event.getCount());
           output.emit(pair);
           outputUnique.emit(pair1);
         }
@@ -58,9 +61,9 @@ public class WeatherEventConvertor implements Operator
     }
   };
 
-  public final transient DefaultOutputPort<KeyValPair<Integer,Integer>> output = new DefaultOutputPort<KeyValPair<Integer,Integer>>();
-  
-  public final transient DefaultOutputPort<KeyValPair<Integer,Integer>> outputUnique = new DefaultOutputPort<KeyValPair<Integer,Integer>>();
+  public final transient DefaultOutputPort<KeyValPair<String, Integer>> output = new DefaultOutputPort<KeyValPair<String, Integer>>();
+
+  public final transient DefaultOutputPort<KeyValPair<String, Integer>> outputUnique = new DefaultOutputPort<KeyValPair<String, Integer>>();
 
   private List<WeatherEvent> parseEvent(String tuple)
   {
@@ -76,13 +79,7 @@ public class WeatherEventConvertor implements Operator
     try {
       line = new org.json.JSONObject(tuple);
 
-      if (line.has(WeatherConstants.TIMESTAMP)) {
-        ts = line.getLong(WeatherConstants.TIMESTAMP) * 1000;
-
-      } else {
-        ts = System.currentTimeMillis();
-      }
-
+     
       if (line.has(WeatherConstants.CITY)) {
         JSONObject city = line.getJSONObject(WeatherConstants.CITY);
 
@@ -108,10 +105,12 @@ public class WeatherEventConvertor implements Operator
 
             if (weatherID != null) {
               event.setWeatherID(weatherID.getInt(WeatherConstants.ID));
+              event.setDescription(weatherID.getString(WeatherConstants.WEATHER_DESC));
             }
 
             event.setCity(cityName);
-            event.setTs(ts);
+
+            
 
             event.setCount(1);
 
@@ -164,7 +163,8 @@ public class WeatherEventConvertor implements Operator
   public static void main(String[] args)
   {
 
-    File file = new File("/Users/dev/workspace/mydtapp/src/test/resources/WeatherInfoTest.json");
+    File file = new File(
+        "/Users/dev/checkout/personalGit/devel/DTStreaming/WeatherStreamingApp/src/test/resources/data/WeatherInfoTest.json");
     FileInputStream fis = null;
     BufferedReader br = null;
 
