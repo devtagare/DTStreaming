@@ -25,6 +25,7 @@ import com.dt.weather.converter.OutputConverter;
 import com.dt.weather.counter.KeyValChangeAggregator;
 import com.dt.weather.counter.KeyValChangeAlert;
 import com.dt.weather.event.convertor.SinglePortWeatherEventConvertor;
+import com.dt.weather.input.JSONFileInputOperator;
 import com.dt.weather.input.SimpleFileReader;
 
 @ApplicationAnnotation(name = "WeatherApp")
@@ -38,21 +39,18 @@ public class WeatherApp implements StreamingApplication
 
     /*Add the File reader*/
 
-    SimpleFileReader fileReader = dag.addOperator("FileReader", new SimpleFileReader());
+    JSONFileInputOperator fileReader = dag.addOperator("FileReader", new JSONFileInputOperator());
 
     fileReader.setDirectory(conf.get(WeatherConstants.INPUT_DIRECTORY_PATH,
         "/Users/dev/workspace/mydtapp/src/test/resources/data/"));
 
+    fileReader.setMatchKey(conf.get(WeatherConstants.MATCH_KEY, "description"));
+
     //Uncomment the rename logic in simple file reader when the regex works
-    //  fileReader.getScanner().setFilePatternRegexp("\\*.json");
+  //  fileReader.getScanner().setFilePatternRegexp(".json");
 
     fileReader.setScanIntervalMillis(0);
     fileReader.setEmitBatchSize(1);
-
-    /*Add the Event convertor*/
-
-    SinglePortWeatherEventConvertor eventConvertor = dag.addOperator("WeatherEventConv",
-        new SinglePortWeatherEventConvertor());
 
     //Add the overall counter
     KeyValChangeAggregator<String, Integer> counter = dag.addOperator("GlobalCounter",
@@ -60,7 +58,7 @@ public class WeatherApp implements StreamingApplication
     counter.setType(Integer.class);
     counter.setCumulative(true);
     dag.setAttribute(counter, Context.OperatorContext.PARTITIONER,
-        new StatelessPartitioner<KeyValChangeAggregator<String, Integer>>(3));
+        new StatelessPartitioner<KeyValChangeAggregator<String, Integer>>(5));
 
     OutputConverter<String, Integer> opConv = dag.addOperator("Converter", new OutputConverter<String, Integer>());
 
@@ -73,9 +71,7 @@ public class WeatherApp implements StreamingApplication
 
     /*Assemble the DAG*/
 
-    dag.addStream("InputRecords", fileReader.output, eventConvertor.data).setLocality(Locality.THREAD_LOCAL);
-
-    dag.addStream("Global Counter", eventConvertor.output, counter.data);
+    dag.addStream("InputRecords", fileReader.output, counter.data).setLocality(Locality.CONTAINER_LOCAL);
 
     dag.addStream("Unifier Output", counter.alert, opConv.data);
 
