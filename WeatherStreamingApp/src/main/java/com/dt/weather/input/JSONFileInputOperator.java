@@ -23,7 +23,7 @@ import com.dt.weather.event.convertor.WeatherEventConvertor;
 
 public class JSONFileInputOperator extends AbstractFileInputOperator<String>
 {
-  
+
   private static final Logger LOG = LoggerFactory.getLogger(WeatherEventConvertor.class);
 
   public transient DefaultOutputPort<KeyValPair<String, Integer>> output = new DefaultOutputPort<KeyValPair<String, Integer>>();
@@ -33,7 +33,7 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
   BufferedReader br;
 
   private String matchKey;
-  
+
   public String getMatchKey()
   {
     return matchKey;
@@ -57,16 +57,16 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
   {
 
     //Uncomment these when the regex from directory scanner works
-//    Path prevPath = new Path(super.currentFile);
-//    
-//    Path processedPath = new Path(super.currentFile + ".proc");
+    //    Path prevPath = new Path(super.currentFile);
+    //    
+    //    Path processedPath = new Path(super.currentFile + ".proc");
 
     super.closeFile(is);
     br.close();
 
-//    FileContext fc = FileContext.getFileContext(super.fs.getUri());
-//    
-//    fc.rename(prevPath, processedPath, Rename.OVERWRITE);
+    //    FileContext fc = FileContext.getFileContext(super.fs.getUri());
+    //    
+    //    fc.rename(prevPath, processedPath, Rename.OVERWRITE);
 
     br = null;
   }
@@ -83,14 +83,12 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
         parser.parse(arg0, finder, true);
         if (finder.isFound()) {
           finder.setFound(false);
-          System.out.println("found id:");
-          System.out.println(finder.getValue().toString());
 
           output.emit(new KeyValPair<String, Integer>(finder.getValue().toString(), 1));
         }
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      LOG.error("Exception in parsing"+e.getLocalizedMessage());
     }
 
   }
