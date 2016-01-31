@@ -47,6 +47,7 @@ public class WeatherApp implements StreamingApplication
 
     fileReader.setScanIntervalMillis(0);
     fileReader.setEmitBatchSize(1);
+    
 
     //Add the overall counter
     KeyValChangeAggregator<String, Integer> counter = dag.addOperator("GlobalCounter",

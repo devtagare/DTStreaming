@@ -42,8 +42,6 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
 
   private volatile HashMap<K, MutableDouble> emitMap = new HashMap<K, MutableDouble>();
 
-  private volatile HashMap<K, MutableDouble> sumEmitMap = new HashMap<K, MutableDouble>();
-
   protected static class SumEntry
   {
     public MutableDouble sum;
@@ -209,10 +207,9 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
     for (Map.Entry<K, SumEntry> e : sums.entrySet()) {
       K key = e.getKey();
       SumEntry val = e.getValue();
-      sumEmitMap.put(key, new MutableDouble(val.sum));
+
       if (val.changed) {
         changed = true;
-        sumEmitMap.put(key, new MutableDouble(val.sum.doubleValue()));
         sumDouble.emit(new KeyValPair<K, Double>(key, val.sum.doubleValue()));
         sumInteger.emit(new KeyValPair<K, Integer>(key, val.sum.intValue()));
         sumFloat.emit(new KeyValPair<K, Float>(key, val.sum.floatValue()));
@@ -224,9 +221,10 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
 
     if (changed) {
       changed = false;
-      sum.emit(sumEmitMap);
+      HashMap<K, MutableDouble> toEmit = new HashMap<K, MutableDouble>();
+      toEmit.put((K)"Total", new MutableDouble(sums.size()));
+      sum.emit(toEmit);
     }
-    sumEmitMap.clear();
 
     emitChangedAggregates();
     clearCache();
