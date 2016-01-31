@@ -19,14 +19,10 @@ import com.datatorrent.api.StreamingApplication;
 import com.datatorrent.api.annotation.ApplicationAnnotation;
 import com.datatorrent.common.partitioner.StatelessPartitioner;
 import com.datatorrent.contrib.kafka.KafkaSinglePortOutputOperator;
-import com.datatorrent.stram.engine.PortContext;
 import com.dt.weather.constants.WeatherConstants;
 import com.dt.weather.converter.OutputConverter;
 import com.dt.weather.counter.KeyValChangeAggregator;
-import com.dt.weather.counter.KeyValChangeAlert;
-import com.dt.weather.event.convertor.SinglePortWeatherEventConvertor;
 import com.dt.weather.input.JSONFileInputOperator;
-import com.dt.weather.input.SimpleFileReader;
 
 @ApplicationAnnotation(name = "WeatherApp")
 public class WeatherApp implements StreamingApplication
@@ -46,8 +42,8 @@ public class WeatherApp implements StreamingApplication
 
     fileReader.setMatchKey(conf.get(WeatherConstants.MATCH_KEY, "description"));
 
-    //Uncomment the rename logic in simple file reader when the regex works
-  //  fileReader.getScanner().setFilePatternRegexp(".json");
+    fileReader
+        .setProcessedDirPath("/Users/dev/checkout/personalGit/devel2/DTStreaming/WeatherStreamingApp/src/test/resources/data-processed/");
 
     fileReader.setScanIntervalMillis(0);
     fileReader.setEmitBatchSize(1);
@@ -129,23 +125,6 @@ public class WeatherApp implements StreamingApplication
     }
 
     return config;
-  }
-
-  public static void main(String[] args) throws Exception
-  {
-
-    LocalMode lma = LocalMode.newInstance();
-    //  Configuration conf = new Configuration(false);
-
-    Configuration conf = new Application()
-        .readPropertiesFile("/Users/dev/workspace/mydtapp/src/test/resources/localmode.properties");
-    // conf.addResource(.getClass().getResourceAsStream("/META-INF/properties.xml"));
-
-    lma.prepareDAG(new Application(), conf);
-    LocalMode.Controller lc = lma.getController();
-    lc.setHeartbeatMonitoringEnabled(false);
-    lc.run(10000);
-
   }
 
 }

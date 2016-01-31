@@ -27,7 +27,7 @@ public class WeatherAppTest
     try {
       LocalMode lma = LocalMode.newInstance();
       Configuration conf = new WeatherApp()
-          .readPropertiesFile("/Users/dev/checkout/personalGit/devel/DTStreaming/WeatherStreamingApp/src/test/resources/localmode.properties");
+          .readPropertiesFile("/Users/dev/checkout/personalGit/devel2/DTStreaming/WeatherStreamingApp/src/test/resources/localmode.properties");
       conf.addResource(this.getClass().getResourceAsStream("/META-INF/properties.xml"));
       lma.prepareDAG(new WeatherApp(), conf);
       LocalMode.Controller lc = lma.getController();

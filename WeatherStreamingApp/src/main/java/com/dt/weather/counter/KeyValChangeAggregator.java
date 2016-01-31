@@ -36,7 +36,6 @@ import com.datatorrent.lib.util.KeyValPair;
 import com.datatorrent.lib.util.UnifierHashMapSumKeys;
 import com.dt.weather.constants.WeatherConstants;
 
-
 @OperatorAnnotation(partitionable = true)
 public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyValueOperator<K, V> implements Operator
 {
@@ -114,11 +113,12 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
    * Output port to emit the aggregates if they have changed
    * */
 
-  public final transient DefaultOutputPort<HashMap<K,MutableDouble>> alert = new DefaultOutputPort<HashMap<K,MutableDouble>>(){
+  public final transient DefaultOutputPort<HashMap<K, MutableDouble>> alert = new DefaultOutputPort<HashMap<K, MutableDouble>>()
+  {
     @Override
     public Unifier<HashMap<K, MutableDouble>> getUnifier()
     {
-      UnifierHashMapSumKeys<K, MutableDouble> unifierHashMapSumKeys =  new UnifierHashMapSumKeys<K, MutableDouble>();
+      UnifierHashMapSumKeys<K, MutableDouble> unifierHashMapSumKeys = new UnifierHashMapSumKeys<K, MutableDouble>();
       unifierHashMapSumKeys.setType(MutableDouble.class);
       return unifierHashMapSumKeys;
     }
@@ -210,11 +210,11 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
 
   public void emitChangedAggregates()
   {
-    emitMap.put((K)"uniques", new MutableDouble(sums.size()));
-       
-    alert.emit(emitMap);
 
+    emitMap.put((K)"uniques", new MutableDouble(sums.size()));
+    alert.emit(emitMap);
     emitMap.clear();
+
   }
 
   /**

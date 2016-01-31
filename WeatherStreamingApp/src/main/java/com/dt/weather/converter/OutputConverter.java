@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.common.util.BaseOperator;
+import com.datatorrent.lib.util.KeyValPair;
 import com.dt.weather.constants.WeatherConstants;
 
 public class OutputConverter<K, V extends Number> extends BaseOperator
@@ -26,7 +27,7 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
 
     }
   };
-
+      
   public void emitChangedAggregates(HashMap<K, MutableDouble> tuple)
   {
     StringBuilder outTuple = new StringBuilder();
@@ -35,8 +36,14 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
 
     String keyToSkip = "uniques";
     MutableDouble uniqueVal = new MutableDouble();
+    
+    if(tuple.entrySet().size()==1){
+      return;
+    }
 
     for (Entry<K, MutableDouble> entry : tuple.entrySet()) {
+      
+      
       String key = (String)entry.getKey();
       MutableDouble value = new MutableDouble(entry.getValue());
 

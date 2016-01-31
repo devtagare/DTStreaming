@@ -5,8 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.Options.Rename;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.json.simple.parser.JSONParser;
 import org.slf4j.Logger;
@@ -29,6 +28,29 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
   public transient DefaultOutputPort<KeyValPair<String, Integer>> output = new DefaultOutputPort<KeyValPair<String, Integer>>();
 
   private static JSONParser parser = new JSONParser();
+
+  private String processedDirPath;
+
+  private String json;
+
+  private volatile boolean found;
+
+  public JSONFileInputOperator()
+  {
+
+    json = "";
+
+  }
+
+  public String getProcessedDirPath()
+  {
+    return processedDirPath;
+  }
+
+  public void setProcessedDirPath(String processedDirPath)
+  {
+    this.processedDirPath = processedDirPath;
+  }
 
   BufferedReader br;
 
@@ -57,16 +79,18 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
   {
 
     //Uncomment these when the regex from directory scanner works
-    //    Path prevPath = new Path(super.currentFile);
-    //    
-    //    Path processedPath = new Path(super.currentFile + ".proc");
+    Path prevPath = new Path(super.currentFile);
+
+    String str = super.currentFile;
+
+    String[] arr = str.split("/");
+
+    Path processedPath = new Path(getProcessedDirPath());
 
     super.closeFile(is);
     br.close();
 
-    //    FileContext fc = FileContext.getFileContext(super.fs.getUri());
-    //    
-    //    fc.rename(prevPath, processedPath, Rename.OVERWRITE);
+    FileUtil.copy(super.fs, prevPath, super.fs, processedPath, false, super.configuration);
 
     br = null;
   }
@@ -74,21 +98,32 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
   @Override
   protected void emit(String arg0)
   {
+    json += arg0;
+
     parser = new JSONParser();
 
     KeyFinder finder = new KeyFinder();
+
     finder.setMatchKey(getMatchKey());
+
     try {
       while (!finder.isEnd()) {
-        parser.parse(arg0, finder, true);
+
+        parser.parse(json, finder, true);
+
+        found = true;
+
         if (finder.isFound()) {
           finder.setFound(false);
-
           output.emit(new KeyValPair<String, Integer>(finder.getValue().toString(), 1));
+
         }
+
       }
     } catch (Exception e) {
-      LOG.error("Exception in parsing"+e.getLocalizedMessage());
+   //   LOG.error("Exception in parsing" + e.getLocalizedMessage());
+      found = false;
+
     }
 
   }
@@ -96,47 +131,14 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String>
   @Override
   protected String readEntity() throws IOException
   {
-    return br.readLine();
+    String line = br.readLine();
 
-  }
-
-  public static void main(String[] args)
-  {
-    String dir = "/Users/dev/Desktop/test";
-    Attribute.AttributeMap attributes = new Attribute.AttributeMap.DefaultAttributeMap();
-    attributes.put(Context.DAGContext.APPLICATION_PATH, dir);
-    Context.OperatorContext context = new OperatorContextHelper.TestIdOperatorContext(1, attributes);
-
-    JSONFileInputOperator jsonReader = new JSONFileInputOperator();
-
-    jsonReader.setDirectory(dir);
-
-    //    jsonReader.setPartitionCount(1);
-    jsonReader.setScanIntervalMillis(0);
-    jsonReader.setEmitBatchSize(10);
-
-    //jsonReader.getScanner().setFilePatternRegexp(".txt2");
-
-    jsonReader.setup(context);
-
-    CollectorTestSink<String> queryResults = new CollectorTestSink<String>();
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    CollectorTestSink<Object> sink = (CollectorTestSink)queryResults;
-    jsonReader.output.setSink(sink);
-
-    try {
-      for (long wid = 0; wid < 100; wid++) {
-        jsonReader.beginWindow(wid);
-
-        jsonReader.emitTuples();
-        jsonReader.endWindow();
-      }
+    if (found) {
+      found = false;
+      json = "";
     }
 
-    catch (Exception e) {
-      e.printStackTrace();
-    }
-    jsonReader.teardown();
+    return line;
   }
 
 }
