@@ -23,42 +23,46 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
     public void process(HashMap<K, MutableDouble> tuple)
     {
 
-      emitChangedAggregates(tuple);
+      emitChangedAggregates(tuple, "Uniques");
 
     }
   };
-      
-  public void emitChangedAggregates(HashMap<K, MutableDouble> tuple)
+
+  public final transient DefaultInputPort<HashMap<K, MutableDouble>> dataCumulative = new DefaultInputPort<HashMap<K, MutableDouble>>()
+  {
+    @Override
+    public void process(HashMap<K, MutableDouble> tuple)
+    {
+
+      emitChangedAggregates(tuple, "Total Counts");
+
+    }
+  };
+
+  public void emitChangedAggregates(HashMap<K, MutableDouble> tuple, String str)
   {
     StringBuilder outTuple = new StringBuilder();
 
     outTuple.append("<time: " + System.currentTimeMillis() / 1000);
 
-    String keyToSkip = "uniques";
-    MutableDouble uniqueVal = new MutableDouble();
-    
-    if(tuple.entrySet().size()==1){
+    if (tuple.entrySet().size() == 1 && str.equals("Uniques")) {
       return;
     }
 
+    outTuple.append(WeatherConstants.RECORD_SEPARATOR);
+
+    outTuple.append(str);
+    
+
     for (Entry<K, MutableDouble> entry : tuple.entrySet()) {
-      
-      
+
       String key = (String)entry.getKey();
       MutableDouble value = new MutableDouble(entry.getValue());
-
-      if (keyToSkip.equalsIgnoreCase(key)) {
-        uniqueVal.setValue(value);
-        continue;
-      }
 
       outTuple.append(WeatherConstants.RECORD_SEPARATOR);
       outTuple.append(key + WeatherConstants.TUPLE_SEPARATOR + value);
 
     }
-
-    outTuple.append(WeatherConstants.RECORD_SEPARATOR);
-    outTuple.append(keyToSkip + WeatherConstants.TUPLE_SEPARATOR + uniqueVal.doubleValue());
 
     outTuple.append(" >");
 

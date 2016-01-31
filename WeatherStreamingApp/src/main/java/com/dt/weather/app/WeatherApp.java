@@ -70,6 +70,8 @@ public class WeatherApp implements StreamingApplication
     dag.addStream("InputRecords", fileReader.output, counter.data).setLocality(Locality.CONTAINER_LOCAL);
 
     dag.addStream("Unifier Output", counter.alert, opConv.data);
+    
+    dag.addStream("UnifierCumulative Output", counter.sum, opConv.dataCumulative);
 
     dag.addStream("Convert Output", opConv.output, kafkaOutputOperator.inputPort);
 
