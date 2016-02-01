@@ -98,9 +98,6 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
   public void endWindow()
   {
     emitChangedAggregates(emitMap);
-
-    System.out.println("Emit map:" + emitMap.toString());
-
     emitMap.clear();
 
   }

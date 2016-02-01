@@ -8,7 +8,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.json.simple.parser.JSONParser;
@@ -19,6 +22,7 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.Operator.CheckpointListener;
 import com.datatorrent.lib.io.fs.AbstractFileInputOperator;
 import com.datatorrent.lib.util.KeyValPair;
+import com.dt.weather.constants.WeatherConstants;
 import com.dt.weather.event.convertor.WeatherEventConvertor;
 
 public class JSONFileInputOperator extends AbstractFileInputOperator<String> implements CheckpointListener
@@ -29,8 +33,8 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
   public transient DefaultOutputPort<KeyValPair<String, Integer>> output = new DefaultOutputPort<KeyValPair<String, Integer>>();
 
   private static JSONParser parser = new JSONParser();
-  
- private List <String> fileProcessedList;
+
+  private ConcurrentHashMap<String, Boolean> fileProcessedStatus;
 
   private String processedDirPath;
 
@@ -43,8 +47,8 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
     json = "";
 
-    fileProcessedList = new LinkedList<String>();
-    
+    fileProcessedStatus = new ConcurrentHashMap<String, Boolean>();
+
   }
 
   public String getProcessedDirPath()
@@ -82,19 +86,20 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
   @Override
   protected void closeFile(InputStream is) throws IOException
   {
-    
-    fileProcessedList.add(super.currentFile);
-    super.closeFile(is);    
-    committed(currentWindowId);
+
+    fileProcessedStatus.put(super.currentFile, false);
+    super.closeFile(is);
+    committed(currentWindowId - 60);
     br.close();
     br = null;
   }
-  
-  public void renameFile(String src,String dest){
+
+  public void renameFile(String src, String dest)
+  {
     Path prevPath = new Path(src);
-   
+
     Path processedPath = new Path(dest);
-    
+
     try {
       FileUtil.copy(super.fs, prevPath, super.fs, processedPath, false, super.configuration);
     } catch (IOException e) {
@@ -129,7 +134,7 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
       }
     } catch (Exception e) {
-   //   LOG.error("Exception in parsing" + e.getLocalizedMessage());
+      //   LOG.error("Exception in parsing" + e.getLocalizedMessage());
       found = false;
 
     }
@@ -148,23 +153,23 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
     return line;
   }
-  
-  
-  public void committed(long windowId){
-    Set <String> fileList = super.processedFiles;
-    
-    ListIterator<String> itr = fileProcessedList.listIterator();
-    
-    while(itr.hasNext()){
-      String completedFilePath = itr.next().toString();
-      
-      if(fileList.contains(completedFilePath)){
-        renameFile(completedFilePath,getProcessedDirPath());
-        fileProcessedList.remove(completedFilePath);
+
+  public void committed(long windowId)
+  {
+    Set<String> fileList = super.processedFiles;
+
+    for (Entry<String, Boolean> entry : fileProcessedStatus.entrySet()) {
+
+      String completedFilePath = (String)entry.getKey();
+      Boolean value = entry.getValue();
+
+      if (!value && fileList.contains(completedFilePath)) {
+        renameFile(completedFilePath, getProcessedDirPath());
+        fileProcessedStatus.put(completedFilePath, true);
       }
+
     }
-    
-    
+
   }
 
 }
