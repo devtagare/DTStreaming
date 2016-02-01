@@ -89,7 +89,6 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
     fileProcessedStatus.put(super.currentFile, false);
     super.closeFile(is);
-    committed(currentWindowId - 60);
     br.close();
     br = null;
   }

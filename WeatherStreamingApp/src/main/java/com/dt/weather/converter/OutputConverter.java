@@ -72,6 +72,10 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
     if (tuple.size() < 1) {
       return;
     }
+    
+    if(emitMap.size()==1 && emitMap.containsKey("Total")){
+      return;
+    }
 
     outTuple.append("<time: " + System.currentTimeMillis() / 1000);
 
