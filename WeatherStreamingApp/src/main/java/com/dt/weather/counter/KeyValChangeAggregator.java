@@ -20,10 +20,6 @@ package com.dt.weather.counter;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-
-import jline.internal.Log;
 
 import org.apache.commons.lang.mutable.MutableDouble;
 
@@ -36,7 +32,6 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.lib.util.BaseNumberKeyValueOperator;
 import com.datatorrent.lib.util.KeyValPair;
 import com.datatorrent.lib.util.UnifierHashMapSumKeys;
-import com.dt.weather.constants.WeatherConstants;
 
 @OperatorAnnotation(partitionable = true)
 public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyValueOperator<K, V> implements Operator
