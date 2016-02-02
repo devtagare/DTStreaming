@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -34,7 +35,7 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
   private static JSONParser parser = new JSONParser();
 
-  private ConcurrentHashMap<String, Boolean> fileProcessedStatus;
+  private ConcurrentHashMap<String, HashMap<Long, Boolean>> fileProcessedStatus;
 
   private String processedDirPath;
 
@@ -47,7 +48,7 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
     json = "";
 
-    fileProcessedStatus = new ConcurrentHashMap<String, Boolean>();
+    fileProcessedStatus = new ConcurrentHashMap<String, HashMap<Long, Boolean>>();
 
   }
 
@@ -87,7 +88,10 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
   protected void closeFile(InputStream is) throws IOException
   {
 
-    fileProcessedStatus.put(super.currentFile, false);
+    HashMap fileEntry = new HashMap();
+    fileEntry.put(super.currentWindowId, false);
+
+    fileProcessedStatus.put(super.currentFile, fileEntry);
     super.closeFile(is);
     br.close();
     br = null;
@@ -157,14 +161,25 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
   {
     Set<String> fileList = super.processedFiles;
 
-    for (Entry<String, Boolean> entry : fileProcessedStatus.entrySet()) {
+    for (Entry<String, HashMap<Long, Boolean>> entry : fileProcessedStatus.entrySet()) {
 
       String completedFilePath = (String)entry.getKey();
-      Boolean value = entry.getValue();
+      HashMap<Long, Boolean> valueMap = entry.getValue();
 
-      if (!value && fileList.contains(completedFilePath)) {
-        renameFile(completedFilePath, getProcessedDirPath());
-        fileProcessedStatus.put(completedFilePath, true);
+      for (Entry<Long, Boolean> valEntry : valueMap.entrySet()) {
+
+        Long valKey = valEntry.getKey();
+        Boolean val = valEntry.getValue();
+
+        //Check if the file was processed before the committed window & its not renamed already before renaming it
+        if (!val && valKey <= windowId && fileList.contains(completedFilePath)) {
+          renameFile(completedFilePath, getProcessedDirPath());
+
+          HashMap fileEntry = new HashMap();
+          fileEntry.put(valKey, true);
+
+          fileProcessedStatus.put(completedFilePath, fileEntry);
+        }
       }
 
     }

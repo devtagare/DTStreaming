@@ -20,6 +20,8 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
   private ConcurrentHashMap<K, MutableDouble> emitMap = new ConcurrentHashMap<K, MutableDouble>();
 
   private volatile double sum = 0;
+  
+  private volatile boolean changed = false;
 
   public final transient DefaultInputPort<HashMap<K, MutableDouble>> data = new DefaultInputPort<HashMap<K, MutableDouble>>()
   {
@@ -54,13 +56,16 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
         if (sum < value.doubleValue()) {
           emitMap.put((K)"Total", value);
           sum = value.doubleValue();
+          changed = true;
         } else {
           emitMap.put((K)key, new MutableDouble(sum));
+          changed = false;
         }
       } else {
         emitMap.put((K)key, value);
+        
       }
-
+     
     }
 
   }
@@ -73,7 +78,7 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
       return;
     }
     
-    if(emitMap.size()==1 && emitMap.containsKey("Total")){
+    if(emitMap.size()==1){
       return;
     }
 
@@ -83,6 +88,8 @@ public class OutputConverter<K, V extends Number> extends BaseOperator
 
       String key = (String)entry.getKey();
       MutableDouble value = new MutableDouble(entry.getValue());
+      
+      if(key.equals("Total")&&!changed)continue;
 
       outTuple.append(WeatherConstants.RECORD_SEPARATOR);
       outTuple.append(key + WeatherConstants.TUPLE_SEPARATOR + value);

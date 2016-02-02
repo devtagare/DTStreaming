@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
+import jline.internal.Log;
+
 import org.apache.commons.lang.mutable.MutableDouble;
 
 import com.datatorrent.api.DefaultInputPort;
@@ -41,6 +43,8 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
 {
 
   private volatile HashMap<K, MutableDouble> emitMap = new HashMap<K, MutableDouble>();
+
+  HashMap<K, MutableDouble> toEmit = new HashMap<K, MutableDouble>();
 
   /**
    * Sums key map.
@@ -147,10 +151,8 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
   @Override
   public void endWindow()
   {
-    HashMap<K, MutableDouble> toEmit = new HashMap<K, MutableDouble>();
-    toEmit.put((K)"Total", new MutableDouble(sums.size()));
+    toEmit.put((K)"Total", new MutableDouble(sums.entrySet().size()));
     sum.emit(toEmit);
-
     emitChangedAggregates();
     clearCache();
   }
