@@ -108,12 +108,13 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
   @OutputPortFieldAnnotation(optional = true)
   public final transient DefaultOutputPort<HashMap<K, MutableDouble>> sum = new DefaultOutputPort<HashMap<K, MutableDouble>>()
   {
-
+    
     @Override
     public Unifier<HashMap<K, MutableDouble>> getUnifier()
     {
-      UnifierHashMapSumKeys<K, MutableDouble> unifierHashMapSumKeys = new UnifierHashMapSumKeys<K, MutableDouble>();
+      KeyValUnifier<K, MutableDouble> unifierHashMapSumKeys = new KeyValUnifier<K, MutableDouble>();
       unifierHashMapSumKeys.setType(MutableDouble.class);
+      
       return unifierHashMapSumKeys;
     }
 

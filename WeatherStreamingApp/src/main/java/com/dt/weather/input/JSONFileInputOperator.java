@@ -4,15 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.json.simple.parser.JSONParser;
@@ -23,7 +20,6 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.Operator.CheckpointListener;
 import com.datatorrent.lib.io.fs.AbstractFileInputOperator;
 import com.datatorrent.lib.util.KeyValPair;
-import com.dt.weather.constants.WeatherConstants;
 import com.dt.weather.event.convertor.WeatherEventConvertor;
 
 public class JSONFileInputOperator extends AbstractFileInputOperator<String> implements CheckpointListener
@@ -35,7 +31,7 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
   private static JSONParser parser = new JSONParser();
 
-  private ConcurrentHashMap<String, HashMap<Long, Boolean>> fileProcessedStatus;
+  private ConcurrentHashMap<Long, Set<String>> processedFilesList;
 
   private String processedDirPath;
 
@@ -48,7 +44,7 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
     json = "";
 
-    fileProcessedStatus = new ConcurrentHashMap<String, HashMap<Long, Boolean>>();
+    processedFilesList = new ConcurrentHashMap<Long, Set<String>>();
 
   }
 
@@ -88,10 +84,18 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
   protected void closeFile(InputStream is) throws IOException
   {
 
-    HashMap fileEntry = new HashMap();
-    fileEntry.put(super.currentWindowId, false);
+    Long currentWindow = super.currentWindowId;
+    String fileName = super.currentFile;
 
-    fileProcessedStatus.put(super.currentFile, fileEntry);
+    if (processedFilesList.contains(currentWindow)) {
+      processedFilesList.get(currentWindow).add(fileName);
+
+    } else {
+      Set<String> tmpSet = new HashSet<String>();
+      tmpSet.add(fileName);
+      processedFilesList.put(currentWindow, tmpSet);
+    }
+
     super.closeFile(is);
     br.close();
     br = null;
@@ -159,31 +163,42 @@ public class JSONFileInputOperator extends AbstractFileInputOperator<String> imp
 
   public void committed(long windowId)
   {
-    Set<String> fileList = super.processedFiles;
 
-    for (Entry<String, HashMap<Long, Boolean>> entry : fileProcessedStatus.entrySet()) {
+    Set<String> processedFiles = super.processedFiles;
 
-      String completedFilePath = (String)entry.getKey();
-      HashMap<Long, Boolean> valueMap = entry.getValue();
+    for (Entry<Long, Set<String>> entry : processedFilesList.entrySet()) {
 
-      for (Entry<Long, Boolean> valEntry : valueMap.entrySet()) {
+      Long completedWindowId = (Long)entry.getKey();
 
-        Long valKey = valEntry.getKey();
-        Boolean val = valEntry.getValue();
+      if (completedWindowId > windowId)
+        continue;
 
-        //Check if the file was processed before the committed window & its not renamed already before renaming it
-        if (!val && valKey <= windowId && fileList.contains(completedFilePath)) {
-          renameFile(completedFilePath, getProcessedDirPath());
+      Set<String> filesProcessed = entry.getValue();
 
-          HashMap fileEntry = new HashMap();
-          fileEntry.put(valKey, true);
+      Iterator<String> itr = filesProcessed.iterator();
 
-          fileProcessedStatus.put(completedFilePath, fileEntry);
+      while (itr.hasNext()) {
+        String fname = itr.next().toString();
+        if (processedFiles.contains(fname)) {
+
+          renameFile(fname, getProcessedDirPath());
         }
       }
 
     }
 
+    //Prune the file list for the files  that are 60 windows behind committed window
+    pruneFileList(windowId - 120);
+
+  }
+
+  public void pruneFileList(long windowId)
+  {
+    for (Entry<Long, Set<String>> entry : processedFilesList.entrySet()) {
+      if (entry.getKey().longValue() <= windowId) {
+        processedFilesList.remove(entry.getKey());
+      }
+    }
   }
 
 }
