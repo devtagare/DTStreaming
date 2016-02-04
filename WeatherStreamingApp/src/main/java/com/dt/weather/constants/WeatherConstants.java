@@ -18,6 +18,5 @@ public class WeatherConstants
   public static final String RECORD_SEPARATOR = ",";
   public static final String TUPLE_SEPARATOR = ":";
   public static final String MATCH_KEY = "description";
-  
- 
+
 }

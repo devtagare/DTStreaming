@@ -20,8 +20,6 @@ package com.dt.weather.counter;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang.mutable.MutableDouble;
 
@@ -34,8 +32,6 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.lib.util.BaseNumberKeyValueOperator;
 import com.datatorrent.lib.util.KeyValPair;
 import com.datatorrent.lib.util.UnifierHashMapSumKeys;
-import com.dt.weather.constants.WeatherConstants;
-
 
 @OperatorAnnotation(partitionable = true)
 public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyValueOperator<K, V> implements Operator
@@ -43,27 +39,12 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
 
   private volatile HashMap<K, MutableDouble> emitMap = new HashMap<K, MutableDouble>();
 
-  protected static class SumEntry
-  {
-    public MutableDouble sum;
-    public boolean changed = true;
-
-    SumEntry()
-    {
-    }
-
-    SumEntry(MutableDouble sum, boolean changed)
-    {
-      this.sum = sum;
-      this.changed = changed;
-    }
-
-  }
+  HashMap<K, MutableDouble> toEmit = new HashMap<K, MutableDouble>();
 
   /**
    * Sums key map.
    */
-  protected HashMap<K, SumEntry> sums = new HashMap<K, SumEntry>();
+  protected HashMap<K, MutableDouble> sums = new HashMap<K, MutableDouble>();
 
   /**
    * Cumulative sum flag.
@@ -85,17 +66,22 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
       if (!doprocessKey(key)) {
         return;
       }
-      SumEntry val = sums.get(key);
+      MutableDouble val = sums.get(key);
       if (val == null) {
-        val = new SumEntry(new MutableDouble(tuple.getValue().doubleValue()), true);
-        emitMap.put(cloneKey(key), val.sum);
+
+        val = new MutableDouble(tuple.getValue().doubleValue());
+
+        emitMap.put(cloneKey(key), val);
 
       } else {
-        val.sum.add(tuple.getValue().doubleValue());
-        val.changed = true;
-        emitMap.put(key, val.sum);
+        //Update a value already present in the map
+
+        val.setValue(val.doubleValue() + tuple.getValue().doubleValue());
+
+        emitMap.put(key, val);
 
       }
+      //Add the updated values to the sums map 
       sums.put(cloneKey(key), val);
     }
 
@@ -114,51 +100,25 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
    * Output port to emit the aggregates if they have changed
    * */
 
-  public final transient DefaultOutputPort<HashMap<K,MutableDouble>> alert = new DefaultOutputPort<HashMap<K,MutableDouble>>(){
-    @Override
-    public Unifier<HashMap<K, MutableDouble>> getUnifier()
-    {
-      UnifierHashMapSumKeys<K, MutableDouble> unifierHashMapSumKeys =  new UnifierHashMapSumKeys<K, MutableDouble>();
-      unifierHashMapSumKeys.setType(MutableDouble.class);
-      return unifierHashMapSumKeys;
-    }
-  };
+  public final transient DefaultOutputPort<HashMap<K, MutableDouble>> alert = new DefaultOutputPort<HashMap<K, MutableDouble>>();
 
   /**
    * Output sum port.
    */
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<KeyValPair<K, V>> sum = new DefaultOutputPort<KeyValPair<K, V>>();
+  public final transient DefaultOutputPort<HashMap<K, MutableDouble>> sum = new DefaultOutputPort<HashMap<K, MutableDouble>>()
+  {
+    
+    @Override
+    public Unifier<HashMap<K, MutableDouble>> getUnifier()
+    {
+      KeyValUnifier<K, MutableDouble> unifierHashMapSumKeys = new KeyValUnifier<K, MutableDouble>();
+      unifierHashMapSumKeys.setType(MutableDouble.class);
+      
+      return unifierHashMapSumKeys;
+    }
 
-  /**
-   * Output double sum port.
-   */
-  @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<KeyValPair<K, Double>> sumDouble = new DefaultOutputPort<KeyValPair<K, Double>>();
-
-  /**
-   * Output integer sum port.
-   */
-  @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<KeyValPair<K, Integer>> sumInteger = new DefaultOutputPort<KeyValPair<K, Integer>>();
-
-  /**
-   * Output long sum port.
-   */
-  @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<KeyValPair<K, Long>> sumLong = new DefaultOutputPort<KeyValPair<K, Long>>();
-
-  /**
-   * Output short sum port.
-   */
-  @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<KeyValPair<K, Short>> sumShort = new DefaultOutputPort<KeyValPair<K, Short>>();
-
-  /**
-   * Output float sum port.
-   */
-  @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<KeyValPair<K, Float>> sumFloat = new DefaultOutputPort<KeyValPair<K, Float>>();
+  };
 
   /**
    * Get cumulative flag.
@@ -187,19 +147,8 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
   @Override
   public void endWindow()
   {
-
-    for (Map.Entry<K, SumEntry> e : sums.entrySet()) {
-      K key = e.getKey();
-      SumEntry val = e.getValue();
-      if (val.changed) {
-        sum.emit(new KeyValPair<K, V>(key, getValue(val.sum.doubleValue())));
-        sumDouble.emit(new KeyValPair<K, Double>(key, val.sum.doubleValue()));
-        sumInteger.emit(new KeyValPair<K, Integer>(key, val.sum.intValue()));
-        sumFloat.emit(new KeyValPair<K, Float>(key, val.sum.floatValue()));
-        sumShort.emit(new KeyValPair<K, Short>(key, val.sum.shortValue()));
-        sumLong.emit(new KeyValPair<K, Long>(key, val.sum.longValue()));
-      }
-    }
+    toEmit.put((K)"Total", new MutableDouble(sums.entrySet().size()));
+    sum.emit(toEmit);
     emitChangedAggregates();
     clearCache();
   }
@@ -210,11 +159,9 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
 
   public void emitChangedAggregates()
   {
-    emitMap.put((K)"uniques", new MutableDouble(sums.size()));
-       
     alert.emit(emitMap);
-
     emitMap.clear();
+
   }
 
   /**
@@ -223,9 +170,9 @@ public class KeyValChangeAggregator<K, V extends Number> extends BaseNumberKeyVa
   public void clearCache()
   {
     if (cumulative) {
-      for (Map.Entry<K, SumEntry> e : sums.entrySet()) {
-        SumEntry val = e.getValue();
-        val.changed = false;
+      for (Map.Entry<K, MutableDouble> e : sums.entrySet()) {
+        MutableDouble val = e.getValue();
+
       }
     } else {
       sums.clear();

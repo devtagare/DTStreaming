@@ -1,4 +1,4 @@
-package com.dt.weather.app;
+package com.dt.weather.helper;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
